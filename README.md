@@ -1,10 +1,10 @@
 # EVA — Emergency Voice Activated Bracelet
 
-**EVA (Emergency Voice Activated Bracelet)** is a university project developed for the **Digital Systems Design course at Politecnico di Milano**. It explores a voice-activated bracelet to support requests for help in dangerous situations, with particular attention to **violence against women**. The project investigates an **embedded keyword spotting** system that detects the Italian activation phrase **“EVA aiutami”** (“EVA, help me”), allowing the user to initiate an emergency request without manual interaction.
+**EVA (Emergency Voice Activated Bracelet)** is a university project developed for the Digital Systems Design course at Politecnico di Milano. It explores a voice-activated bracelet to support requests for help in dangerous situations, with particular attention to violence against women. The project investigates an **embedded keyword spotting** system that detects the Italian activation phrase **“EVA aiutami”** (“EVA, help me”), allowing the user to initiate an emergency request without manual interaction.
 
-The system is designed to acquire audio from the digital microphone of the **XIAO ESP32-S3 Sense** and run inference locally on its microcontroller. Model selection considers recognition performance alongside network size and computational requirements, with the aim of identifying a classifier suitable for the memory and processing constraints of the **ESP32-S3**.
+The system is designed to acquire audio from the digital microphone of the **XIAO ESP32-S3 Sense** and run inference locally on its microcontroller. Model selection considers recognition performance alongside network size and computational requirements, with the aim of identifying a classifier suitable for the memory and processing constraints of the ESP32-S3.
 
-This repository contains the **Python/TensorFlow experimentation pipeline** used to develop and compare candidate models for embedded deployment. Audio windows are converted into **Mel-Frequency Cepstral Coefficients (MFCCs)** and classified using **1D or 2D convolutional neural networks (CNNs)**. The code supports individual experiments and **grid search with grouped cross-validation**, allowing acoustic feature parameters and network architectures to be compared under a common evaluation protocol. Training runs on the computer; inference latency, memory usage, and energy consumption must be measured separately on the target hardware.
+This repository contains the **Python/TensorFlow experimentation pipeline** used to develop and compare candidate models for embedded deployment. Audio windows are converted into **Mel-Frequency Cepstral Coefficients (MFCCs)** and classified using **1D or 2D convolutional neural networks (CNNs)**. The code supports individual experiments and grid search with grouped cross-validation, allowing acoustic feature parameters and network architectures to be compared under a common evaluation protocol. Training runs on the computer; inference latency, memory usage, and energy consumption must be measured separately on the target hardware.
 
 ## Dataset and acquisition
 
@@ -33,7 +33,7 @@ Audio recordings and experiment outputs are not distributed with this repository
 
 ## Sample preparation with Edge Impulse
 
-**[Edge Impulse Studio](https://docs.edgeimpulse.com/tutorials/end-to-end/keyword-spotting)** is used to support **dataset preparation**: importing recordings, assigning labels, and segmenting recordings into 1100 ms samples. The prepared WAV files are exported for use in the local pipeline. Training, grid search, and evaluation described in this repository run in **Python/TensorFlow**.
+**[Edge Impulse Studio](https://docs.edgeimpulse.com/tutorials/end-to-end/keyword-spotting)** is used to support dataset preparation: importing recordings, assigning labels, and segmenting recordings into 1100 ms samples. The prepared WAV files are exported for use in the local pipeline. Training, grid search, and evaluation described in this repository run in Python/TensorFlow.
 
 Separately from the use of Studio for dataset preparation, the MFCC implementation incorporates DSP components derived from Edge Impulse sources, preserved in `third_party/` with their license notices. Numerical equivalence with a particular Edge Impulse project must be checked separately using matching DSP settings.
 
@@ -91,7 +91,7 @@ Prepare the labeled 1100 ms WAV samples before running this training pipeline, r
 
 Set `data_dir` in `train.py` to the dataset directory. The training pipeline checks audio format, duration, grouping, and duplicates as part of loading and evaluation.
 
-When cross-validation is enabled, the historical `training` and `test` directories are pooled **in memory** and split again by group. WAV files are not moved.
+When cross-validation is enabled, the historical `training` and `test` directories are pooled in memory and split again by group. WAV files are not moved.
 
 ## Running a single experiment
 
