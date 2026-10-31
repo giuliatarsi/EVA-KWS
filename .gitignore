@@ -1,0 +1,63 @@
+# Python and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+# Local audio, dataset versions, and generated metadata
+raw_export/
+data/
+data_v*/
+aside_*/
+review_duration*/
+import_report*/
+checked_cv_splits/
+dataset_checked.csv
+*.wav
+*.mp3
+*.m4a
+*.flac
+# Generated training artifacts
+cache/
+results/
+*.keras
+*.h5
+*.tflite
+*.onnx
+*.zip
+
+# Local reports, verification notes, and temporary exports
+/reports*/
+/VERIFICA.md
+/output/
+/tmp/
+*.log
+*.pdf
+# Cached arrays and additional model/checkpoint formats
+*.npy
+*.npz
+*.ckpt
+*.ckpt.*
+*.weights.h5
+*.pb
+/checkpoints/
+/saved_model/
+
+# Local preparation, diagnostic scripts and development tests
+/prepare_export.py
+/check_dataset.py
+/compare_edge_impulse.py
+/compare_class_weights.py
+/subsample_environment.py
+/evaluate.py
+/tests/
