@@ -1,0 +1,5 @@
+Selected DSP files from https://github.com/edgeimpulse/inferencing-sdk-cpp
+Commit 4ec5868a78b0455e8148489548d3de12dd8e6b96
+Original license notices preserved. No Edge Impulse inference engine or model included.
+Wrapper uses preemphasis matching the Python pipeline and non-quantized filterbank.
+Integration change: prefix public KissFFT symbols with eva_ to avoid collisions with TFLite Micro.

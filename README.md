@@ -4,173 +4,88 @@
 
 The system is designed to acquire audio from the digital microphone of the **XIAO ESP32-S3 Sense** and run inference locally on its microcontroller. Model selection considers recognition performance alongside network size and computational requirements, with the aim of identifying a classifier suitable for the memory and processing constraints of the **ESP32-S3**.
 
-This repository contains the **Python/TensorFlow experimentation pipeline** used to develop and compare candidate models for embedded deployment. Audio windows are converted into **Mel-Frequency Cepstral Coefficients (MFCCs)** and classified using **1D or 2D convolutional neural networks (CNNs)**. The code supports individual experiments and **grid search with grouped cross-validation**, allowing acoustic feature parameters and network architectures to be compared under a common evaluation protocol. Training runs on the computer; inference latency, memory usage, and energy consumption must be measured separately on the target hardware.
+This repository contains both the **Python/TensorFlow model-development pipeline** and the **Arduino firmware**. Python experiments compare compact CNNs using MFCC inputs and grouped cross-validation; the firmware performs acquisition and inference locally. The full bracelet interaction (vibration, cancellation and BLE) has a scaffold and is not implemented yet.
 
-## Dataset and acquisition
+## Repository layout
 
-The dataset was collected from **multiple participants**, across recording sessions and acoustic conditions. All recordings included in the dataset were acquired using the **digital microphone of the XIAO ESP32-S3 Sense**, matching the audio acquisition hardware intended for the prototype.
+```text
+EVA-KWS/
+├── training/                 # MFCC, CNNs, training, cross-validation, campaigns
+│   ├── train.py              # Spyder entry point: single / custom grid
+│   ├── train_final.py        # Final fit and float32/int8 exports
+│   └── third_party/          # Python DSP sources, provenance and licenses
+├── deployment/               # Model conversion and Arduino data generation
+│   ├── tflite_export.py
+│   └── prepare_arduino_reference.py
+├── firmware/
+│   ├── eva_bracelet/          # Future complete application: explicit scaffold
+│   ├── eva_continuous/        # Working continuous microphone/CNN comparison
+│   ├── eva_dataset_recorder/  # Ten-second WAV recorder, filename then rec
+│   ├── tests/                # Model, MFCC parity and triggered microphone tests
+│   └── libraries/EVA_MFCC/    # Shared C++ DSP dependency and license notices
+├── docs/                     # Setup, dataset, hardware and implementation status
+├── requirements.txt
+└── .gitignore
+```
 
-Recordings are organized into three classes:
+Local `data/`, `data_v2/`, `cache/`, `results/`, `reports/`, `local_tools/` and development `tests/` remain outside version control. They are not duplicated or moved by the source-code layout. Root paths are resolved from the script location, independent of Spyder's current directory. Generated model arrays and arrays containing recorded audio are also ignored.
 
-| Class | Content |
-|---|---|
-| `eva` | The complete activation phrase **“EVA aiutami”** |
-| `unknown` | Other words, phrases, and conversations that do not constitute the activation phrase |
-| `noise` | Environmental sounds without speech, according to the adopted annotation criteria |
+## Python setup and entry points
 
-The collection includes different voices and noise environments to assess performance on speakers and environments excluded from training.
+Use the existing working Anaconda environment, or install `requirements.txt` in a separate environment. Do not reinstall TensorFlow into a working environment merely because the files moved. Python modules now use package-qualified imports (`training.*`, `deployment.*`).
 
-Initial board recordings were saved as 10-second WAV files. Following annotation, recordings were segmented into **1100 ms samples**, checking that positive samples contained the complete activation phrase. The pipeline uses **mono WAV files with 16-bit PCM encoding and a 16 kHz sampling rate**.
+In Spyder, open **`training/train.py`** and run the whole file with F5. Configure the first section:
 
-Filenames preserve **speaker (`Pxx`)**, **environment (`Axx`)**, session, and recording identifiers to retain sample traceability. Class labels come from annotation; speaker and environment identifiers are used for grouping, not for inferring a label.
+- `MODE='single'`: one feature/network configuration, with grouped cross-validation when enabled.
+- `MODE='custom_grid'`, `GRID_SCOPE='full'`: the Cartesian feature/network grid.
+- `MODE='custom_grid'`, `GRID_SCOPE='selected'`: only the explicitly listed candidate pairs.
+- `MODE='custom_grid'`, `GRID_SCOPE='three_class_campaign'`, `SETTINGS.binary=False`: the matched three-class campaign.
 
-The code supports two classification tasks:
+`SETTINGS.binary=True` merges unknown and noise into non_target in memory; original WAV labels are preserved. Training and split seeds are configured separately. Five grouped outer folds keep each speaker/environment out of training once; internal grouped validation selects the checkpoint. Full learning histories are retained across all configured epochs. Grid outputs save numeric metrics without opening hundreds of plot windows.
 
-- **Three-class classification:** `eva`, `unknown`, and `noise`.
-- **Binary classification:** `eva` versus `non_target`, formed by merging `unknown` and `noise` in memory. Switching modes does not require renaming the WAV files.
+The complete grid compares four MFCC/Mel choices, two CNN families, four filter sequences and three kernels (96 configurations). The three-class campaign adds matched regularization, batch, learning-rate and feature follow-ups, deduplicating shared configurations (114 unique cases, 570 trainings with five folds/one seed). [Training details](training/README.md).
 
-Audio recordings and experiment outputs are not distributed with this repository. They remain in the local working directory and are excluded from version control through `.gitignore`.
-
-## Sample preparation with Edge Impulse
-
-**[Edge Impulse Studio](https://docs.edgeimpulse.com/tutorials/end-to-end/keyword-spotting)** is used to support **dataset preparation**: importing recordings, assigning labels, and segmenting recordings into 1100 ms samples. The prepared WAV files are exported for use in the local pipeline. Training, grid search, and evaluation described in this repository run in **Python/TensorFlow**.
-
-Separately from the use of Studio for dataset preparation, the MFCC implementation incorporates DSP components derived from Edge Impulse sources, preserved in `third_party/` with their license notices. Numerical equivalence with a particular Edge Impulse project must be checked separately using matching DSP settings.
-
-## How the pipeline works
-
-1. **Audio indexing and validation.** The code indexes WAV files, checks format and duration, and extracts the identifiers needed for group separation. Integrity checks include detecting duplicate audio.
-2. **Grouped splitting.** Speakers and environments are assigned to folds while keeping all recordings from the same group together, regardless of session or device, to prevent data leakage.
-3. **MFCC extraction.** Each sample is transformed into a sequence of coefficient vectors used as network input. Features are cached to avoid repeated computation. MFCCs are also calculated for validation and test samples: this DSP transformation is not learned from training labels.
-4. **CNN training.** The network learns to distinguish the classes. Both 1D and 2D CNNs are available, with configurable filters, kernels, depth, and dropout. Augmentation applies Gaussian noise and temporal masking only during training.
-5. **Checkpoint selection.** Validation loss determines which model weights are retained for evaluation. With the current settings, training runs all configured epochs, including those after the best checkpoint, so that learning curves share the same epoch range.
-6. **Evaluation and export of results.** The selected checkpoint is evaluated on the fold's test set. The code saves metrics, predictions, configurations, and learning histories; grid mode does not generate plots.
-
-## Code organization
-
-| File or directory | Purpose |
-|---|---|
-| `train.py` | Entry point: user settings, single experiments, and custom grid search |
-| `config.py` | Data, MFCC, network, and training configuration definitions |
-| `data.py` | Dataset indexing, label handling, and integrity checks |
-| `features.py` | MFCC extraction and feature caching |
-| `models.py` | 1D and 2D CNN construction |
-| `experiments.py` | Individual model training, checkpoints, and experiment saving |
-| `cross_validation.py` | Speaker/environment fold construction and execution |
-| `metrics.py`, `keras_metrics.py` | Evaluation metrics and EVA AUC during training |
-| `cv_reports.py` | Metric aggregation and plot generation |
-| `third_party/` | External DSP components and their licenses |
-
-## Installation and preparation
-
-The pipeline requires a Python environment with TensorFlow, NumPy, SciPy, scikit-learn, and Matplotlib. Development uses **Spyder with Anaconda**; scripts can also run from a terminal. Dependencies are listed in `requirements.txt`.
-
-In a dedicated environment:
+Equivalent terminal commands from the repository root:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m training.train
+python -m training.train_final
+python -m deployment.prepare_arduino_reference
 ```
 
-When using an existing working Anaconda environment, check installed dependencies before reinstalling packages.
+These commands execute work; importing/opening the modules does not start training. Check settings before launching. For a final fit, open **`training/train_final.py`**: it saves the best Keras checkpoint, inference-only Keras network, float32/int8 TFLite models and conversion comparisons under `results/final_model/<timestamp>/`. Historical train/test data are pooled for a new grouped training/validation split; `test_finale`, if present, stays excluded. These validation checks are not a new independent performance estimate. [Deployment details](deployment/README.md).
 
-Organize local WAV files as follows:
+## Dataset and Edge Impulse
 
-```text
-data_v2/
-├── training/
-│   ├── eva/
-│   ├── unknown/
-│   └── noise/
-└── test/
-    ├── eva/
-    ├── unknown/
-    └── noise/
-```
+Recordings are acquired with the XIAO ESP32-S3 Sense microphone: mono PCM16 WAV at 16kHz. Ten-second recordings are annotated and cropped into 1100ms samples, ensuring the complete phrase is present in positive examples. Classes are:
 
-Prepare the labeled 1100 ms WAV samples before running this training pipeline, retaining speaker and environment identifiers in the filenames. Dataset preparation and diagnostic utilities are maintained locally and are not included in this repository.
-
-Set `data_dir` in `train.py` to the dataset directory. The training pipeline checks audio format, duration, grouping, and duplicates as part of loading and evaluation.
-
-When cross-validation is enabled, the historical `training` and `test` directories are pooled **in memory** and split again by group. WAV files are not moved.
-
-## Running a single experiment
-
-In `train.py`, set:
-
-```python
-MODE = 'single'
-```
-
-Edit `SETTINGS`, `SINGLE_FEATURE`, and `SINGLE_MODEL`. For example:
-
-```python
-SINGLE_FEATURE = MFCCConfig(n_mfcc=13, n_mels=32)
-SINGLE_MODEL = ModelConfig(
-    family='cnn1d',
-    filters=(8, 16),
-    kernel=5,
-    dropout=0.25,
-)
-```
-
-`SETTINGS` controls binary or three-class classification (`binary`), learning rate, batch size, epochs, seeds, and augmentation. Each element in `filters` defines a convolutional block: `(8, 16)` creates two blocks, while `(8, 16, 32)` creates three. For 2D CNNs, the kernel is square: `kernel=5` means 5 × 5.
-
-To disable augmentation, set **both** `gaussian_std=0.0` and `time_mask_max_frames=0`. Dropout is controlled separately in the network configuration.
-
-In Spyder, run the complete `train.py` file with **F5**. From a terminal:
-
-```bash
-python train.py
-```
-
-Single mode evaluates one feature/network configuration across the configured folds and generates per-fold and aggregate plots: loss versus epochs, EVA ROC AUC versus epochs, and confusion matrices.
-
-## Comparing configurations with grid search
-
-In `train.py`, set:
-
-```python
-MODE = 'custom_grid'
-```
-
-The grid evaluates the product of the configured lists:
-
-| List | Parameters compared |
+| Label | Content |
 |---|---|
-| `FEATURES` | MFCC coefficient count, Mel filter count, and other DSP parameters |
-| `GRID_FAMILIES` | 1D and 2D CNNs |
-| `GRID_KERNELS` | Convolutional kernel sizes |
-| `GRID_FILTERS` | Filter counts and number of convolutional blocks |
-| `GRID_LEARNING_RATES` | Learning rates |
+| `eva` | Complete “EVA aiutami” phrase |
+| `unknown` | Other speech, including isolated EVA/aiutami and confusing negative phrases |
+| `noise` | Environmental sounds without speech under the adopted labeling policy |
 
-`MODELS` is constructed by combining network family, filter configuration, and kernel size. Grid dropout is set to 0.25; batch size, augmentation, and other settings come from `SETTINGS`. Grid learning rates come from `GRID_LEARNING_RATES`, rather than the learning rate used in single mode.
+Speaker IDs (`Pxx`) and environment IDs (`Axx`) preserve group identity across recordings and sessions. Edge Impulse Studio supports annotation and segmentation; model development runs locally. The Python MFCC implementation derives from Edge Impulse sources with provenance and licenses in `training/third_party/`. The C++ wrapper and its dependencies are in `firmware/libraries/EVA_MFCC/`.
 
-Shorten the lists to reduce the number of experiments. The total training count is printed before execution:
+Audio and generated reports/results are not distributed. The collaborator must receive authorized data separately or prepare their own compatible dataset. [Dataset structure](docs/dataset.md).
 
-```text
-MFCC configurations × networks × learning rates × folds × seeds
-```
+## Arduino setup and current status
 
-Grid mode does not open plot windows or generate PNGs for each experiment. It saves metrics and numerical learning histories for subsequent comparison. Completed experiments with identical configurations and data are reused; interrupted experiments restart from the beginning.
+Install **esp32 by Espressif Systems 3.3.12** in Boards Manager and **Chirale_TensorFLowLite 2.0.0** in Library Manager. Install the repository's **EVA_MFCC** library using the [firmware setup instructions](firmware/README.md). Select XIAO_ESP32S3, the USB port and USB CDC On Boot Enabled. The SD recorder additionally needs OPI PSRAM and a FAT32 microSD.
 
-## Cross-validation and interpretation
+Each Arduino sketch lives in a directory with the same name as its `.ino`. Open that `.ino`; Arduino compiles the accompanying `.cpp` files automatically. Model arrays must be generated locally or supplied separately before compiling inference sketches.
 
-The current configuration uses **five grouped folds**: each speaker or environment appears in the test set once per repetition. Within each fold, some of the remaining groups are reserved for validation and checkpoint selection. Split proportions are approximate because groups may differ in size.
+| Sketch | Status |
+|---|---|
+| `firmware/eva_dataset_recorder` | WAV recorder: send full filename, then `rec` |
+| `firmware/eva_continuous` | Continuous acquisition, 1100ms windows / nominal 500ms stride; float32/int8 scores |
+| `firmware/tests/eva_model_test` | CNN parity using precomputed MFCCs |
+| `firmware/tests/eva_mfcc_test` | Saved PCM -> on-device MFCC -> both CNNs |
+| `firmware/tests/eva_microphone_test` | Command-triggered microphone acquisition and comparison |
+| `firmware/eva_bracelet` | Scaffold only; full alarm/BLE integration pending |
 
-Outputs include EVA precision, recall, F1, and AUC, together with accuracy, loss, and confusion matrices. Aggregate performance is reported as the **mean and standard deviation across folds**. Multiple seeds can be configured to assess training variability as well.
+The saved-reference checks established close Python/C++ MFCC agreement and matching predictions for the selected reference clip. Continuous recognition still needs evaluation on complete phrases, isolated words and long negative recordings. Scores printed by test firmware are not a calibrated alarm policy. [Hardware](docs/hardware.md) · [Implementation roadmap](docs/implementation.md).
 
-Files are saved under `results/`. Grid results are separated by learning rate, with a combined summary at:
+## Collaborating
 
-```text
-results/custom_grid/grid_summary_all_learning_rates.csv
-```
-
-Mean learning curves show progression across epochs. A horizontal test line, when present, represents the mean performance of the selected checkpoints, not repeated test evaluation at every epoch.
-
-Comparisons should consider both missed detections and false positives. Errors on 1100 ms clips do not directly measure false alarms during continuous listening. Repeatedly using outer-fold results to select models also makes those results part of development rather than independent final validation.
-
-## Third-party DSP components
-
-The `third_party/` directory is a required runtime dependency: `features.py` imports its feature extraction and signal processing modules to compute MFCCs. It must be distributed with the training code, including its source attribution and license files. It does not contain private recordings or trained models.
-
-Development tests and dataset preparation utilities are kept locally and excluded from the published training repository.
+Keep `main` usable and work on a branch per change, then review a pull request. Before committing, inspect GitHub Desktop's file list: WAVs, checkpoints, reports, model/audio arrays and credentials must stay local. Preserve source/license notices for bundled DSP dependencies. The README and setup documents explain how to reproduce dependencies; installing a library on one Mac does not install it for collaborators.

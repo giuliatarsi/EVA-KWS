@@ -61,3 +61,15 @@ results/
 /subsample_environment.py
 /evaluate.py
 /tests/
+
+# Firmware arrays generated from local audio and trained weights
+/firmware/**/reference_data.cpp
+/firmware/**/eva_float32_model.cpp
+/firmware/**/eva_int8_model.cpp
+
+# Local-only preparation/diagnostic tools after repository reorganization
+/local_tools/
+# Generated model arrays (including future main firmware)
+/firmware/**/model_data.cpp
+/firmware/**/reference_expected.json
+/firmware/**/saved_model/
