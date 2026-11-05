@@ -1,8 +1,8 @@
 # EVA — Emergency Voice Activated Bracelet
 
-**EVA (Emergency Voice Activated Bracelet)** is a university project developed for the **Digital Systems Design course at Politecnico di Milano**. It explores a voice-activated bracelet to support requests for help in dangerous situations, with particular attention to **violence against women**. The project investigates an **embedded keyword spotting** system that detects the Italian activation phrase **“EVA aiutami”** (“EVA, help me”), allowing the user to initiate an emergency request without manual interaction.
+**EVA (Emergency Voice Activated Bracelet)** is a university project developed for the Digital Systems Design course at Politecnico di Milano. It explores a voice-activated bracelet to support requests for help in dangerous situations, with particular attention to violence against women. The project investigates an **embedded keyword spotting** system that detects the Italian activation phrase **“EVA aiutami”** (“EVA, help me”), allowing the user to initiate an emergency request without manual interaction.
 
-The system is designed to acquire audio from the digital microphone of the **XIAO ESP32-S3 Sense** and run inference locally on its microcontroller. Model selection considers recognition performance alongside network size and computational requirements, with the aim of identifying a classifier suitable for the memory and processing constraints of the **ESP32-S3**.
+The system is designed to acquire audio from the digital microphone of the **XIAO ESP32-S3 Sense** and run inference locally on its microcontroller. Model selection considers recognition performance alongside network size and computational requirements, with the aim of identifying a classifier suitable for the memory and processing constraints of the ESP32-S3.
 
 This repository contains both the **Python/TensorFlow model-development pipeline** and the **Arduino firmware**. Python experiments compare compact CNNs using MFCC inputs and grouped cross-validation; the firmware performs acquisition and inference locally. The full bracelet interaction (vibration, cancellation and BLE) has a scaffold and is not implemented yet.
 
