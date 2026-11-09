@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "421948883509",
+    "project_id": "eva-backen",
+    "storage_bucket": "eva-backen.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:421948883509:android:8bbb775b0eb09b852f277c",
+        "android_client_info": {
+          "package_name": "com.example.eva_gateway"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDJchMjxsYKwFjS_z8myFY2KOFgIDmu5s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
