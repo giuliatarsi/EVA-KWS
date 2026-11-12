@@ -1,1 +1,39 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"eva-backen","appId":"1:421948883509:android:8bbb775b0eb09b852f277c","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"eva-backen","configurations":{"android":"1:421948883509:android:8bbb775b0eb09b852f277c","ios":"1:421948883509:ios:c89f015b6c5580392f277c","macos":"1:421948883509:ios:c89f015b6c5580392f277c","web":"1:421948883509:web:e9f12b8fb9abd98c2f277c","windows":"1:421948883509:web:fa1c88fde799cdd22f277c"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "eva-backen",
+          "appId": "1:421948883509:android:8bbb775b0eb09b852f277c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "eva-backen",
+          "configurations": {
+            "android": "1:421948883509:android:8bbb775b0eb09b852f277c",
+            "ios": "1:421948883509:ios:c89f015b6c5580392f277c",
+            "macos": "1:421948883509:ios:c89f015b6c5580392f277c",
+            "web": "1:421948883509:web:e9f12b8fb9abd98c2f277c",
+            "windows": "1:421948883509:web:fa1c88fde799cdd22f277c"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
