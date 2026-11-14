@@ -13,7 +13,6 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 // Modelli neurali e dati di riferimento (da File A)
-#include "eva_float32_model.h"
 #include "eva_int8_model.h"
 #include "reference_data.h"
 
@@ -31,8 +30,8 @@
 #define CONFIDENCE_THRESHOLD 0.80f     // Soglia di attivazione allarme (80%)
 
 // --- Pin Hardware Motore e Pulsante (XIAO ESP32-S3) ---
-#define VIBRATION_PIN        D0        // GPIO1 -> Collegare al Gate del MOSFET
-#define CANCEL_BUTTON_PIN    D1        // GPIO2 -> Collegare tra D1 e GND (INPUT_PULLUP)
+#define VIBRATION_PIN        D1        // GPIO2 -> IN del driver Adafruit 5648
+#define CANCEL_BUTTON_PIN    D2        // GPIO3 -> Pulsante tra D2 e GND (INPUT_PULLUP)
 
 // --- Pin Microfono PDM Integrato (XIAO Sense) ---
 // NOTA RISOLUZIONE CONFLITTO: Entrambi i file usano i pin 42 (CLK) e 41 (DATA).
@@ -169,50 +168,40 @@ bool snapshot(uint64_t &end_sample, uint32_t &errors) {
   return ready;
 }
 
-// Esegue l'inferenza sul modello TFLite specificato (Float32 o Int8)
-bool infer(const unsigned char* bytes, float &eva, float &negative, float &duration_ms) {
-  const tflite::Model* model = tflite::GetModel(bytes);
+// Modello INT8 locale di prova, esportato con MFCC a 256 punti FFT.
+bool infer(float &eva, float &negative, float &duration_ms) {
+  const tflite::Model* model = tflite::GetModel(eva_int8_model);
   if (model->version() != TFLITE_SCHEMA_VERSION) return false;
   tflite::MicroInterpreter interpreter(model, resolver, arena, arena_size);
   if (interpreter.AllocateTensors() != kTfLiteOk) return false;
-  
+
   TfLiteTensor *input = interpreter.input(0), *output = interpreter.output(0);
-  size_t count = 1;
-  for (int i = 0; i < input->dims->size; ++i) count *= input->dims->data[i];
-  if (count != 715 || output->dims->size != 2 || output->dims->data[1] != 2) return false;
-  if (input->type == kTfLiteInt8 && input->params.scale <= 0) return false;
-  
+  if (input->type != kTfLiteInt8 || output->type != kTfLiteInt8 ||
+      input->params.scale <= 0 || output->params.scale <= 0 ||
+      input->dims->size != 3 || input->dims->data[0] != 1 ||
+      input->dims->data[1] != 55 || input->dims->data[2] != 13 ||
+      output->dims->size != 2 || output->dims->data[0] != 1 ||
+      output->dims->data[1] != 2) return false;
+
   for (size_t i = 0; i < 715; ++i) {
-    if (input->type == kTfLiteFloat32) {
-      input->data.f[i] = features[i];
-    } else if (input->type == kTfLiteInt8) {
-      int value = (int)roundf(features[i] / input->params.scale) + input->params.zero_point;
-      input->data.int8[i] = (int8_t)(value > 127 ? 127 : (value < -128 ? -128 : value));
-    } else {
-      return false;
-    }
+    const int value = (int)roundf(features[i] / input->params.scale) + input->params.zero_point;
+    input->data.int8[i] = (int8_t)(value > 127 ? 127 : (value < -128 ? -128 : value));
   }
-  
-  uint32_t start = micros();
+
+  const uint32_t start = micros();
   if (interpreter.Invoke() != kTfLiteOk) return false;
   duration_ms = (micros() - start) / 1000.f;
-  
+
   float scores[2];
   for (int i = 0; i < 2; ++i) {
-    if (output->type == kTfLiteFloat32) {
-      scores[i] = output->data.f[i];
-    } else if (output->type == kTfLiteInt8) {
-      scores[i] = (output->data.int8[i] - output->params.zero_point) * output->params.scale;
-    } else {
-      return false;
-    }
+    scores[i] = (output->data.int8[i] - output->params.zero_point) * output->params.scale;
   }
   eva = scores[0];
   negative = scores[1];
   return isfinite(eva) && isfinite(negative);
 }
 
-// Calcola le MFCC, esegue i modelli e restituisce true se la parola chiave supera la soglia
+// Calcola le MFCC, esegue il modello INT8 e restituisce true se la parola chiave supera la soglia
 bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t advance, float &out_confidence) {
   out_confidence = 0.0f;
   uint32_t all_start = micros();
@@ -231,8 +220,8 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
     }
   }
   
-  float f, nf, tf, q, nq, tq;
-  if (!infer(eva_float32_model, f, nf, tf) || !infer(eva_int8_model, q, nq, tq)) {
+  float q, nq, tq;
+  if (!infer(q, nq, tq)) {
     Serial.println("ERRORE inferenza");
     return false;
   }
@@ -243,8 +232,8 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
     for (size_t i = 0; i < 715; ++i) {
       maximum = fmaxf(maximum, fabsf(features[i] - reference_mfcc[i]));
     }
-    bool ok = maximum < .001f && fabsf(f - .99803442f) < .005f && fabsf(q - .99609375f) < .005f;
-    Serial.printf("RIFERIMENTO %s: MFCC maxerr=%.7f, eva float=%.7f int8=%.7f\n", ok ? "OK" : "NON COINCIDE", maximum, f, q);
+    bool ok = maximum < .001f && fabsf(q - .99609375f) < .005f;
+    Serial.printf("RIFERIMENTO %s: MFCC maxerr=%.7f, eva int8=%.7f\n", ok ? "OK" : "NON COINCIDE", maximum, q);
     return false;
   }
   
@@ -255,19 +244,18 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
     if (window_audio[i] == 32767 || window_audio[i] == -32768) ++clipped;
   }
   
-  Serial.printf("audio %.2f-%.2fs | EVA float=%.4f int8=%.4f | classi=%s/%s | RMS=%.0f clip=%d | MFCC=%.1fms CNN=%.1f/%.1fms totale=%.1fms | passo=%.0fms errori_audio=%lu\n",
-    (end_sample - window_samples) / 16000.0, end_sample / 16000.0, f, q,
-    f > nf ? "eva" : "non_target", q > nq ? "eva" : "non_target", sqrt(energy / window_samples), clipped,
-    dsp_ms, tf, tq, elapsed, advance / 16.0, (unsigned long)errors);
+  Serial.printf("audio %.2f-%.2fs | EVA int8=%.4f | classe=%s | RMS=%.0f clip=%d | MFCC=%.1fms CNN=%.1fms totale=%.1fms | passo=%.0fms errori_audio=%lu\n",
+    (end_sample - window_samples) / 16000.0, end_sample / 16000.0, q,
+    q > nq ? "eva" : "non_target", sqrt(energy / window_samples), clipped,
+    dsp_ms, tq, elapsed, advance / 16.0, (unsigned long)errors);
     
   if (advance > hop_samples + 320) {
     Serial.println("NOTA: passo oltre 500ms; analizzata l'ultima finestra disponibile.");
   }
 
   // Valutazione attivazione allarme: verifica se la classe "eva" vince e supera CONFIDENCE_THRESHOLD
-  out_confidence = f; // Usa il punteggio del modello float32 come riferimento principale (o media con q)
-  bool keyword_detected = (f > nf && f >= CONFIDENCE_THRESHOLD) || (q > nq && q >= CONFIDENCE_THRESHOLD);
-  return keyword_detected;
+  out_confidence = q;
+  return q > nq && q >= CONFIDENCE_THRESHOLD;
 }
 
 // ==========================================================================
@@ -303,7 +291,7 @@ void setup() {
   Serial.println("Bluetooth attivo (SOS_Bracelet_S3). In attesa di connessione...");
 
   // 4. Test di autodiagnostica modelli MFCC + TFLite (da File A)
-  Serial.println("EVA CONTINUOUS + BLE v1 - audio 1100ms / passo 500ms; float32 + int8");
+  Serial.println("EVA CONTINUOUS + BLE v1 - audio 1100ms / passo 500ms; INT8");
   Serial.println("Comandi seriali: p=pausa analisi, s=riprendi, r=test riferimento.");
   float dummy_conf = 0.0f;
   analyze(true, window_samples, 0, 0, dummy_conf);

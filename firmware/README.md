@@ -15,7 +15,6 @@ Select XIAO_ESP32S3, the connected port and USB CDC On Boot Enabled. The recorde
 - `eva_dataset_recorder/`: full filename then rec; WAV10s,16kHz mono PCM16; see its README.
 - `tests/eva_model_test/`: precomputed MFCC -> two CNNs. Reload input before every invocation because the micro runtime can reuse input storage.
 - `tests/eva_mfcc_test/`: saved PCM -> C++ MFCC -> CNN. Send r to repeat.
-- `tests/eva_microphone_test/`: m records1100ms after countdown; r runs the saved reference check.
 
 All serial monitors use115200 baud. No current example sends an alarm or BLE event. Reference comparisons validate one clip, not recognition performance on all speakers or false alarms per hour.
 
