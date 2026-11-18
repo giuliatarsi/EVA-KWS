@@ -81,7 +81,6 @@ Each Arduino sketch lives in a directory with the same name as its `.ino`. Open 
 | `firmware/eva_continuous` | Continuous acquisition, 1100ms windows / nominal 500ms stride; float32/int8 scores |
 | `firmware/tests/eva_model_test` | CNN parity using precomputed MFCCs |
 | `firmware/tests/eva_mfcc_test` | Saved PCM -> on-device MFCC -> both CNNs |
-| `firmware/tests/eva_microphone_test` | Command-triggered microphone acquisition and comparison |
 | `firmware/eva_bracelet` | Scaffold only; full alarm/BLE integration pending |
 
 The saved-reference checks established close Python/C++ MFCC agreement and matching predictions for the selected reference clip. Continuous recognition still needs evaluation on complete phrases, isolated words and long negative recordings. Scores printed by test firmware are not a calibrated alarm policy. [Hardware](docs/hardware.md) · [Implementation roadmap](docs/implementation.md).

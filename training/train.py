@@ -32,7 +32,7 @@ SETTINGS = Settings(
     gaussian_std=0.45,
     time_mask_max_frames=1,
 )
-SINGLE_FEATURE = MFCCConfig(n_mfcc=13,n_mels=40)
+SINGLE_FEATURE = MFCCConfig(n_mfcc=13, n_mels=40, n_fft=512)
 SINGLE_MODEL = ModelConfig(family='cnn1d',filters=(8,16),kernel=5,dropout=.25)
 
 # %% GRID PERSONALIZZABILE
