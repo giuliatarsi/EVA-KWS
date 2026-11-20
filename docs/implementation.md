@@ -1,11 +1,14 @@
-# Firmware implementation status
+# Implementation and validation status
 
-Working checks: float32/int8 CNN inference; saved-audio C++ MFCC parity; command-triggered microphone acquisition; continuous ring-buffer acquisition with nominal500ms updates; separate WAV recorder.
+The main application is firmware/eva_bracelet/eva_bracelet.ino. It implements PDM acquisition in a separate task, 1100 ms windows with nominal 500 ms updates, MFCC extraction, INT8 inference and a listening/pre-alarm/sending state machine. Driver D1 and cancellation D2 match the schematic. The binary B003 trigger requires EVA to win and score at least0.78125, selected to maximize EVA F1 on INT8 validation predictions. This optimized validation threshold is not a guarantee of continuous detection performance. The three-class alias uses the T001 threshold0.51171875; named comparison sketches carry their own thresholds in DEPLOYMENT.json.
 
-Future main firmware is `firmware/eva_bracelet/`. Its files currently only mark responsibilities; the .ino prints a scaffold message. Planned flow:
+The pre-alarm lasts eight seconds, with500 ms vibration on/off pulses. A button press cancels it. Otherwise the firmware notifies SOS over BLE. Audio acquired during vibration is invalidated before recognition resumes. With no phone connected the event is logged but is not queued or acknowledged end to end.
 
-microphone -> audio_capture -> keyword_detector (EVA_MFCC + selected CNN) -> alarm_manager -> ble_service -> smartphone.
+The Flutter app in eva_gateway/lib/main.dart receives BLE SOS, retrieves phone location, stores an alert in Firestore and requests push notifications through the Vercel backend/Firebase Cloud Messaging. The root code_app.dart is an earlier Telegram prototype, not the current gateway. Source implementation does not establish measured delivery reliability, background continuity or battery autonomy.
 
-Alarm states should represent listening, cancellation interval and sending explicitly. Vibration/cancellation/BLE must not block capture. Threshold and temporal confirmation require validation on continuous audio, including isolated-word false triggers. Continuous firmware's argmax labels are diagnostics, not a final alarm policy. The phone handles onward emergency communication; BLE alone is not an emergency messaging service.
+Diagnostics live in firmware/tests/: eva_model_test checks the CNN on saved MFCC; eva_mfcc_test checks saved PCM -> MFCC -> CNN; eva_continuous compares float32/int8 on live audio; eva_vibration_test exercises three seconds of vibration without BLE or cancellation.
 
-Keep diagnostic sketches in firmware/tests and share the same MFCC library. The main firmware should use one selected model instead of shipping both comparison models. Measure end-to-end latency, capture continuity, RAM and consumption on the target.
+The main bracelet now contains B003 INT8 from final run 20261120_152323_263633: CNN1D filters 8-16-32, kernel 3, 2738 parameters, with MFCC13 / Mel32 / FFT512. Its generated reference header supplies both FFT length and Mel count. EVA_MFCC supports FFT256/512 and Mel32/40; model and preprocessing artifacts must be updated together. The B003 MFCC/model reference test passed on the board; the integrated BLE sketch still requires its live hardware checks. Historical diagnostic sketches retain their matching older references.
+
+
+Measure continuous recognition, thresholds, end-to-end notification latency, RAM and power on the final deployed version. Existing reference parity validates one historical clip, not general recognition accuracy.

@@ -27,7 +27,7 @@
 // ==========================================================================
 
 // --- Soglia Riconoscimento Vocale ---
-#define CONFIDENCE_THRESHOLD 0.80f     // Soglia di attivazione allarme (80%)
+#define CONFIDENCE_THRESHOLD 0.78125000f // EVA F1 maximum on INT8 validation; see DEPLOYMENT.json.
 
 // --- Pin Hardware Motore e Pulsante (XIAO ESP32-S3) ---
 #define VIBRATION_PIN        D1        // GPIO2 -> IN del driver Adafruit 5648
@@ -40,8 +40,8 @@
 #define I2S_MIC_DATA_PIN     41
 
 // --- Tempistiche Macchina a Stati (Non bloccanti) ---
-#define CANCEL_WINDOW_MS     5000      // 5 secondi per annullare il falso positivo
-#define PULSE_INTERVAL_MS    200       // Impulsi vibrazione (200ms ON / 200ms OFF)
+#define CANCEL_WINDOW_MS     8000      // 8 secondi per annullare il falso positivo
+#define PULSE_INTERVAL_MS    500       // Impulsi: 500ms ON /500ms OFF
 
 // --- UUID Bluetooth Low Energy (Condivisi con App Flutter) ---
 #define SERVICE_UUID         "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
@@ -93,14 +93,14 @@ bool motorState = false;
 // 3. CALLBACK E FUNZIONI BLUETOOTH LOW ENERGY (da File B)
 // ==========================================================================
 class MyServerCallbacks: public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) override { 
-    deviceConnected = true; 
+  void onConnect(BLEServer* pServer) override {
+    deviceConnected = true;
     Serial.println("📱 Smartphone connesso via BLE!");
   }
-  void onDisconnect(BLEServer* pServer) override { 
+  void onDisconnect(BLEServer* pServer) override {
     deviceConnected = false;
     Serial.println("⚠️ Smartphone disconnesso. Riavvio advertising BLE...");
-    BLEDevice::startAdvertising(); 
+    BLEDevice::startAdvertising();
   }
 };
 
@@ -168,7 +168,7 @@ bool snapshot(uint64_t &end_sample, uint32_t &errors) {
   return ready;
 }
 
-// Modello INT8 locale di prova, esportato con MFCC a 256 punti FFT.
+// B003 INT8: CNN1D 8-16-32, kernel3; MFCC13, Mel32, FFT512.
 bool infer(float &eva, float &negative, float &duration_ms) {
   const tflite::Model* model = tflite::GetModel(eva_int8_model);
   if (model->version() != TFLITE_SCHEMA_VERSION) return false;
@@ -202,12 +202,14 @@ bool infer(float &eva, float &negative, float &duration_ms) {
 }
 
 // Calcola le MFCC, esegue il modello INT8 e restituisce true se la parola chiave supera la soglia
+static bool reference_ok = false;
+
 bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t advance, float &out_confidence) {
   out_confidence = 0.0f;
   uint32_t all_start = micros();
   uint32_t dsp_start = micros();
-  
-  int ret = eva_mfcc(reference ? reference_audio : window_audio, window_samples, features);
+
+  int ret = eva_mfcc(reference ? reference_audio : window_audio, window_samples, features, reference_fft_length, reference_mel_filters);
   float dsp_ms = (micros() - dsp_start) / 1000.f;
   if (ret) {
     Serial.printf("ERRORE MFCC: %d\n", ret);
@@ -219,36 +221,37 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
       return false;
     }
   }
-  
+
   float q, nq, tq;
   if (!infer(q, nq, tq)) {
     Serial.println("ERRORE inferenza");
     return false;
   }
-  
+
   float elapsed = (micros() - all_start) / 1000.f;
   if (reference) {
     float maximum = 0;
     for (size_t i = 0; i < 715; ++i) {
       maximum = fmaxf(maximum, fabsf(features[i] - reference_mfcc[i]));
     }
-    bool ok = maximum < .001f && fabsf(q - .99609375f) < .005f;
+    bool ok = maximum < .001f && fabsf(q - reference_expected_eva_int8) < .005f;
+    reference_ok = ok;
     Serial.printf("RIFERIMENTO %s: MFCC maxerr=%.7f, eva int8=%.7f\n", ok ? "OK" : "NON COINCIDE", maximum, q);
     return false;
   }
-  
+
   double energy = 0;
   int clipped = 0;
   for (size_t i = 0; i < window_samples; ++i) {
     energy += (double)window_audio[i] * window_audio[i];
     if (window_audio[i] == 32767 || window_audio[i] == -32768) ++clipped;
   }
-  
+
   Serial.printf("audio %.2f-%.2fs | EVA int8=%.4f | classe=%s | RMS=%.0f clip=%d | MFCC=%.1fms CNN=%.1fms totale=%.1fms | passo=%.0fms errori_audio=%lu\n",
     (end_sample - window_samples) / 16000.0, end_sample / 16000.0, q,
     q > nq ? "eva" : "non_target", sqrt(energy / window_samples), clipped,
     dsp_ms, tq, elapsed, advance / 16.0, (unsigned long)errors);
-    
+
   if (advance > hop_samples + 320) {
     Serial.println("NOTA: passo oltre 500ms; analizzata l'ultima finestra disponibile.");
   }
@@ -291,10 +294,14 @@ void setup() {
   Serial.println("Bluetooth attivo (SOS_Bracelet_S3). In attesa di connessione...");
 
   // 4. Test di autodiagnostica modelli MFCC + TFLite (da File A)
-  Serial.println("EVA CONTINUOUS + BLE v1 - audio 1100ms / passo 500ms; INT8");
+  Serial.println("EVA B003 INT8 + BLE - audio 1100ms / passo 500ms; INT8");
   Serial.println("Comandi seriali: p=pausa analisi, s=riprendi, r=test riferimento.");
   float dummy_conf = 0.0f;
   analyze(true, window_samples, 0, 0, dummy_conf);
+  if (!reference_ok) {
+    Serial.println("STOP: riferimento non valido, ascolto non avviato.");
+    while (true) delay(1000);
+  }
 
   // 5. Inizializzazione Microfono PDM e Task su Core 0 (Unificato File A + File B)
   microphone.setPinsPdmRx(I2S_MIC_CLOCK_PIN, I2S_MIC_DATA_PIN);
@@ -333,6 +340,10 @@ void loop() {
     if (c == 'r' || c == 'R') {
       float dummy_conf = 0.0f;
       analyze(true, window_samples, 0, 0, dummy_conf);
+  if (!reference_ok) {
+    Serial.println("STOP: riferimento non valido, ascolto non avviato.");
+    while (true) delay(1000);
+  }
     }
   }
 
@@ -367,11 +378,11 @@ void loop() {
         if (detected) {
           Serial.printf("⚠️ Parola chiave 'EVA' rilevata (Confidenza: %.2f)! Avvio finestra di %d secondi...\n",
                         confidence, CANCEL_WINDOW_MS / 1000);
-          
+
           currentState = STATE_PRE_ALARM;
           preAlarmStartTime = millis();
           lastVibrationToggleTime = millis();
-          
+
           // Attiva immediatamente il primo impulso del motore di vibrazione
           motorState = true;
           digitalWrite(VIBRATION_PIN, HIGH);

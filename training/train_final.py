@@ -15,15 +15,16 @@ from training.config import Settings, MFCCConfig, ModelConfig
 from deployment.tflite_export import export_models
 
 SETTINGS = Settings(
-    data_dir=PROJECT/'data_v2', output_dir=PROJECT/'results'/'final_model',
+    data_dir=PROJECT/'data_v3', output_dir=PROJECT/'results'/'final_model',
     cache_dir=PROJECT/'cache', binary=True, validation_fraction=.20,
     split_seed=42, seeds=(42,), epochs=100, batch_size=128,
     learning_rate=.005, early_stopping=False, gaussian_std=.45,
     time_mask_max_frames=1, class_weight_mode='none',
     show_plots=False, save_plots=True,
 )
-FEATURES = MFCCConfig(n_mfcc=13, n_mels=40)
-NETWORK = ModelConfig(family='cnn1d', filters=(8,16), kernel=5, dropout=.25)
+FEATURES = MFCCConfig(n_mfcc=13, n_mels=32, n_fft=512)
+# B003: candidato compatto selezionato dalla grid V3 (2738 parametri).
+NETWORK = ModelConfig(family='cnn1d', filters=(8,16,32), kernel=3, dropout=.25)
 CALIBRATION_SAMPLES = 200  # Solo feature originali del training, senza augmentation.
 # Dopo un'interruzione dell'export, impostare la cartella già creata per non riaddestrare.
 # Esempio: PROJECT/'results'/'final_model'/'20261105_120000_123456'

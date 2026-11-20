@@ -60,7 +60,10 @@ def export_models(best, xtrain, ytrain, xval, yval, val_records, folder,
     from training.metrics import save_evaluation
     # Ricostruisce la rete senza GaussianNoise e con dropout=0 (solo inferenza).
     from dataclasses import replace
-    inference = build_model(xtrain.shape[1:], 2, replace(network, dropout=0.),
+    labels = tuple(sorted({record["label"] for record in val_records}))
+    if len(labels) != int(best.output_shape[-1]):
+        raise ValueError("Numero classi incompatibile con il modello")
+    inference = build_model(xtrain.shape[1:], len(labels), replace(network, dropout=0.),
                             None, None, noise_std=0.)
     inference.set_weights(best.get_weights())
     original = best.predict(xval, batch_size=128, verbose=0)
@@ -88,7 +91,6 @@ def export_models(best, xtrain, ytrain, xval, yval, val_records, folder,
     int_path = folder/'eva_int8.tflite'
     int_path.write_bytes(converter.convert())
     report = {}
-    labels = ('eva', 'non_target')
     save_evaluation(folder, 'validation_keras', val_records, yval, reference, labels)
     for name, path in [('float32',float_path), ('int8',int_path)]:
         scores, io = lite_predictions(path, xval)

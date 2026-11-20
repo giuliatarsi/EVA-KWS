@@ -33,7 +33,7 @@ class ModelConfig:
 
 @dataclass
 class Settings:
-    data_dir: Path = PROJECT / 'data_v2'
+    data_dir: Path = PROJECT / 'data_v3'
     output_dir: Path = PROJECT / 'results'
     cache_dir: Path = PROJECT / 'cache'
     cross_validation: bool = False

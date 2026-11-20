@@ -1,0 +1,84 @@
+{
+  "candidate": "T001_dropout050",
+  "run": "results/final_model_three_class/20261120_161757_451012",
+  "configuration": {
+    "settings": {
+      "data_dir": "data_v3",
+      "output_dir": "results/final_model_three_class",
+      "cache_dir": "cache",
+      "cross_validation": false,
+      "n_folds": 5,
+      "save_plots": true,
+      "show_plots": false,
+      "class_weight_mode": "none",
+      "binary": false,
+      "validation_fraction": 0.2,
+      "split_seed": 42,
+      "epochs": 100,
+      "batch_size": 128,
+      "learning_rate": 0.005,
+      "early_stopping": false,
+      "patience": 15,
+      "gaussian_std": 0.45,
+      "time_mask_max_frames": 1,
+      "seeds": [
+        42
+      ],
+      "deterministic": true,
+      "length_tolerance_ms": 1.0
+    },
+    "mfcc": {
+      "sample_rate": 16000,
+      "clip_ms": 1100,
+      "frame_ms": 20,
+      "hop_ms": 20,
+      "n_mfcc": 13,
+      "n_mels": 40,
+      "n_fft": 512,
+      "low_hz": 0.0,
+      "high_hz": 0.0,
+      "preemphasis": 0.98,
+      "pre_shift": 1,
+      "normalization_window": 101,
+      "dsp_version": 4,
+      "implementation": "edgeimpulse_9b0ceb2b5d22_speechpy_v1"
+    },
+    "model": {
+      "family": "cnn1d",
+      "filters": [
+        8,
+        16,
+        32
+      ],
+      "kernel": 7,
+      "dropout": 0.5,
+      "head": "flatten"
+    },
+    "dataset_fingerprint": "fbc39ebb2b129d0b069d581e45d10ca454eac53f01d48bedc8a90d3fefc9360a",
+    "seed": 42,
+    "tensorflow": "2.21.0",
+    "pipeline": "final_three_class_v1"
+  },
+  "labels": [
+    "eva",
+    "noise",
+    "unknown"
+  ],
+  "threshold": 0.51171875,
+  "threshold_status": "Validation INT8 EVA F1 maximum, highest threshold among ties",
+  "t003_note": "",
+  "threshold_validation_metrics": {
+    "threshold": 0.51171875,
+    "tp": 112,
+    "fp": 1,
+    "fn": 2,
+    "tn": 226,
+    "precision": 0.9911504424778761,
+    "recall": 0.9824561403508771,
+    "f1": 0.986784140969163,
+    "fp_by_label": {
+      "noise": 0,
+      "unknown": 1
+    }
+  }
+}

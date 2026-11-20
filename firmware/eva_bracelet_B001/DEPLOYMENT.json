@@ -1,0 +1,82 @@
+{
+  "candidate": "B001",
+  "run": "results/final_model_b001/20261120_173628_413187",
+  "configuration": {
+    "settings": {
+      "data_dir": "data_v3",
+      "output_dir": "results/final_model_b001",
+      "cache_dir": "cache",
+      "cross_validation": false,
+      "n_folds": 5,
+      "save_plots": true,
+      "show_plots": false,
+      "class_weight_mode": "none",
+      "binary": true,
+      "validation_fraction": 0.2,
+      "split_seed": 42,
+      "epochs": 100,
+      "batch_size": 128,
+      "learning_rate": 0.005,
+      "early_stopping": false,
+      "patience": 15,
+      "gaussian_std": 0.45,
+      "time_mask_max_frames": 1,
+      "seeds": [
+        42
+      ],
+      "deterministic": true,
+      "length_tolerance_ms": 1.0
+    },
+    "mfcc": {
+      "sample_rate": 16000,
+      "clip_ms": 1100,
+      "frame_ms": 20,
+      "hop_ms": 20,
+      "n_mfcc": 13,
+      "n_mels": 32,
+      "n_fft": 512,
+      "low_hz": 0.0,
+      "high_hz": 0.0,
+      "preemphasis": 0.98,
+      "pre_shift": 1,
+      "normalization_window": 101,
+      "dsp_version": 4,
+      "implementation": "edgeimpulse_9b0ceb2b5d22_speechpy_v1"
+    },
+    "model": {
+      "family": "cnn1d",
+      "filters": [
+        8,
+        16,
+        32
+      ],
+      "kernel": 7,
+      "dropout": 0.25,
+      "head": "flatten"
+    },
+    "dataset_fingerprint": "c5e2839391e414f2dd1f61a21aa0b7df78aa6d616f4291db63efd919454ffca1",
+    "seed": 42,
+    "tensorflow": "2.21.0",
+    "pipeline": "final_binary_v1"
+  },
+  "labels": [
+    "eva",
+    "non_target"
+  ],
+  "threshold": 0.63671875,
+  "threshold_status": "Validation INT8 EVA F1 maximum, highest threshold among ties",
+  "t003_note": "",
+  "threshold_validation_metrics": {
+    "threshold": 0.63671875,
+    "tp": 113,
+    "fp": 2,
+    "fn": 1,
+    "tn": 225,
+    "precision": 0.9826086956521739,
+    "recall": 0.9912280701754386,
+    "f1": 0.9868995633187773,
+    "fp_by_label": {
+      "non_target": 2
+    }
+  }
+}

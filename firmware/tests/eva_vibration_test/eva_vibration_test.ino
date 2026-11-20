@@ -140,8 +140,8 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
   out_confidence = 0.0f;
   uint32_t all_start = micros();
   uint32_t dsp_start = micros();
-  
-  int ret = eva_mfcc(reference ? reference_audio : window_audio, window_samples, features);
+
+  int ret = eva_mfcc(reference ? reference_audio : window_audio, window_samples, features, reference_fft_length);
   float dsp_ms = (micros() - dsp_start) / 1000.f;
   if (ret) {
     Serial.printf("ERRORE MFCC: %d\n", ret);
@@ -153,13 +153,13 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
       return false;
     }
   }
-  
+
   float q, nq, tq;
   if (!infer(q, nq, tq)) {
     Serial.println("ERRORE inferenza");
     return false;
   }
-  
+
   float elapsed = (micros() - all_start) / 1000.f;
   if (reference) {
     float maximum = 0;
@@ -170,19 +170,19 @@ bool analyze(bool reference, uint64_t end_sample, uint32_t errors, uint64_t adva
     Serial.printf("RIFERIMENTO %s: MFCC maxerr=%.7f, eva int8=%.7f\n", ok ? "OK" : "NON COINCIDE", maximum, q);
     return false;
   }
-  
+
   double energy = 0;
   int clipped = 0;
   for (size_t i = 0; i < window_samples; ++i) {
     energy += (double)window_audio[i] * window_audio[i];
     if (window_audio[i] == 32767 || window_audio[i] == -32768) ++clipped;
   }
-  
+
   Serial.printf("audio %.2f-%.2fs | EVA int8=%.4f | classe=%s | RMS=%.0f clip=%d | MFCC=%.1fms CNN=%.1fms totale=%.1fms | passo=%.0fms errori_audio=%lu\n",
     (end_sample - window_samples) / 16000.0, end_sample / 16000.0, q,
     q > nq ? "eva" : "non_target", sqrt(energy / window_samples), clipped,
     dsp_ms, tq, elapsed, advance / 16.0, (unsigned long)errors);
-    
+
   if (advance > hop_samples + 320) {
     Serial.println("NOTA: passo oltre 500ms; analizzata l'ultima finestra disponibile.");
   }

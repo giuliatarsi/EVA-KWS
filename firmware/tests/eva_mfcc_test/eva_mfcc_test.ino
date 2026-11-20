@@ -95,7 +95,7 @@ bool run_model(const unsigned char* bytes, const char* name, float expected_eva)
 void test_both() {
   Serial.println("\nEVA MFCC TEST v1 - audio PCM -> MFCC -> float32/int8");
   uint32_t start=micros();
-  int status=eva_mfcc(reference_audio,reference_audio_count,computed_mfcc);
+  int status=eva_mfcc(reference_audio,reference_audio_count,computed_mfcc,reference_fft_length);
   Serial.printf("MFCC status=%d, tempo=%.3f ms\n",status,(micros()-start)/1000.0f);
   if(status) return;
   float maximum=0; double square=0;

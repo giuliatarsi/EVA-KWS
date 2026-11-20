@@ -104,7 +104,7 @@ bool infer(const unsigned char* bytes,float &eva,float &negative,float &duration
 void analyze(bool reference,uint64_t end_sample,uint32_t errors,uint64_t advance) {
   uint32_t all_start=micros();
   uint32_t dsp_start=micros();
-  int ret=eva_mfcc(reference ? reference_audio : window_audio,window_samples,features);
+  int ret=eva_mfcc(reference ? reference_audio : window_audio,window_samples,features,reference_fft_length);
   float dsp_ms=(micros()-dsp_start)/1000.f;
   if(ret) {Serial.printf("ERRORE MFCC: %d\n",ret);return;}
   for(size_t i=0;i<715;++i) if(!isfinite(features[i])) {Serial.println("ERRORE MFCC non finite");return;}

@@ -266,6 +266,21 @@ public:
         ei_unique_ptr_t __ptr__(mels,[mem_size](void* ptr){ei::ei_dsp_free_func(ptr, mem_size);});
         uint16_t* bins = reinterpret_cast<uint16_t*>(mels); // alias the mels array so we can reuse the space
 
+#if defined(EVA_MFCC_EXACT_MEL_BINS) && EVA_MFCC_EXACT_MEL_BINS
+        // Match Python float64 Mel edges before flooring to FFT bins.
+        // Approximate float log can move an edge across an integer bin.
+        const double low_mel = 1127.0 * std::log(1.0 + low_frequency / 700.0);
+        const double high_mel = 1127.0 * std::log(1.0 + high_frequency / 700.0);
+        const uint16_t max_bin = version >= 4 ? fft_length : power_spectrum_frame_size;
+        for (int ix = 0; ix < MELS_SIZE; ++ix) {
+            const double mel = low_mel + (high_mel - low_mel) * ix / (MELS_SIZE - 1);
+            double hz = 700.0 * (std::exp(mel / 1127.0) - 1.0);
+            if (hz < low_frequency) hz = low_frequency;
+            if (hz > high_frequency) hz = high_frequency;
+            if (ix == MELS_SIZE - 1) hz -= 0.001;
+            bins[ix] = static_cast<uint16_t>(std::floor((max_bin + 1.0) * hz / sampling_frequency));
+        }
+#else
         numpy::linspace(
             functions::frequency_to_mel(static_cast<float>(low_frequency)),
             functions::frequency_to_mel(static_cast<float>(high_frequency)),
@@ -295,6 +310,8 @@ public:
         }
         mels[MELS_SIZE-1] -= 0.001;
         bins[MELS_SIZE-1] = get_fft_bin_from_hertz(max_bin, mels[MELS_SIZE-1], sampling_frequency);
+
+#endif
 
         EI_DSP_MATRIX(power_spectrum_frame, 1, power_spectrum_frame_size);
         if (!power_spectrum_frame.buffer) {

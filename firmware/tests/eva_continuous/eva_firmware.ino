@@ -8,7 +8,7 @@
 #include <ESP_I2S.h> // Nuova libreria nativa per Core Arduino ESP32 v3.0.x
 
 // SOSTITUISCI CON IL NOME DELLA TUA LIBRERIA EDGE IMPULSE QUANDO PRONTA:
-#include <ei_keyword_inferencing.h> 
+#include <ei_keyword_inferencing.h>
 
 // ==========================================================================
 // 2. CONFIGURAZIONE PARAMETRI E PIN (Modificabili in 2 secondi)
@@ -61,14 +61,14 @@ bool motorState = false;
 // 4. GESTIONE CONNESSIONE BLUETOOTH E INVIO SOS
 // ==========================================================================
 class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) { 
-      deviceConnected = true; 
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
       Serial.println("Smartphone connesso via BLE!");
     };
-    void onDisconnect(BLEServer* pServer) { 
+    void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       Serial.println("Smartphone disconnesso. Riavvio visibilità Bluetooth...");
-      BLEDevice::startAdvertising(); 
+      BLEDevice::startAdvertising();
     }
 };
 
@@ -98,7 +98,7 @@ void setup() {
   // Configurazione Pin Motore e Bottone
   pinMode(VIBRATION_PIN, OUTPUT);
   digitalWrite(VIBRATION_PIN, LOW); // Motore spento all'avvio
-  
+
   // INPUT_PULLUP attiva una resistenza interna: il pin legge HIGH quando il bottone
   // è a riposo, e legge LOW appena il bottone viene premuto (chiudendo verso GND)
   pinMode(CANCEL_BUTTON_PIN, INPUT_PULLUP);
@@ -166,17 +166,17 @@ void loop() {
         // 4. Controlla i risultati per vedere se ha sentito la parola d'allarme
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
           if (strcmp(result.classification[ix].label, KEYWORD_LABEL) == 0) {
-            
+
             // Se la sicurezza supera la soglia (es. > 0.80)
             if (result.classification[ix].value > CONFIDENCE_THRESHOLD) {
-              Serial.printf("⚠️ Parola rilevata (%s: %.2f)! Avvio finestra di 5 secondi...\n", 
+              Serial.printf("⚠️ Parola rilevata (%s: %.2f)! Avvio finestra di 5 secondi...\n",
                             result.classification[ix].label, result.classification[ix].value);
-              
+
               // Passa allo stato di PRE-ALLARME e fa partire i cronometri
               currentState = STATE_PRE_ALARM;
               preAlarmStartTime = millis();
               lastVibrationToggleTime = millis();
-              
+
               // Accende subito il primo impulso di vibrazione
               motorState = true;
               digitalWrite(VIBRATION_PIN, HIGH);
@@ -198,7 +198,7 @@ void loop() {
         Serial.println("✅ Allarme ANNULLATO dall'utente tramite pulsante.");
         digitalWrite(VIBRATION_PIN, LOW); // Spegne subito il motore
         motorState = false;
-        
+
         // Torna ad ascoltare il microfono
         currentState = STATE_LISTENING;
         break;
@@ -217,7 +217,7 @@ void loop() {
       if (currentMillis - preAlarmStartTime >= CANCEL_WINDOW_MS) {
         digitalWrite(VIBRATION_PIN, LOW); // Spegne il motore
         motorState = false;
-        
+
         // Nessuno ha premuto il bottone in tempo: passa all'invio dell'SOS!
         currentState = STATE_SENDING_SOS;
       }
@@ -229,7 +229,7 @@ void loop() {
     // ----------------------------------------------------------------------
     case STATE_SENDING_SOS: {
       triggerEmergency(); // Invia il pacchetto "SOS" all'app Flutter
-      
+
       // Una volta inviato l'allarme, riporta il braccialetto in ascolto
       currentState = STATE_LISTENING;
       break;

@@ -49,6 +49,10 @@ def main():
         lines=[', '.join(items[i:i+12]) for i in range(0,len(items),12)]
         return f'alignas(16) const {ctype} {name}[] = {{\n    '+',\n    '.join(lines)+'\n};\n'
     header='#pragma once\n#include <stdint.h>\n#include <stddef.h>\n'
+    header+=f'constexpr size_t reference_fft_length = {cfg.n_fft};\n'
+    header+=f'constexpr size_t reference_mel_filters = {cfg.n_mels};\n'
+    for mode in ['float32','int8']:
+        header+=f"constexpr float reference_expected_eva_{mode} = {reference[mode]['scores'][0]:.9e}f;\n"
     header+='extern const int16_t reference_audio[];\nextern const float reference_mfcc[];\n'
     header+=f'constexpr size_t reference_audio_count = {len(audio)};\nconstexpr size_t reference_mfcc_count = {features.size};\n'
     (out/'reference_data.h').write_text(header)
